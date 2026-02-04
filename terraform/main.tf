@@ -224,6 +224,45 @@ resource "aws_security_group" "rds" {
   }
 }
 
+# S3 Bucket for storing uploaded images
+resource "aws_s3_bucket" "images" {
+  bucket = "${var.project_name}-images-${data.aws_caller_identity.current.account_id}"
+
+  tags = {
+    Name = "${var.project_name}-images"
+  }
+}
+
+# S3 Bucket Versioning
+resource "aws_s3_bucket_versioning" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# S3 Bucket Server-Side Encryption
+resource "aws_s3_bucket_server_side_encryption_configuration" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# S3 Bucket Public Access Block (keep bucket private)
+resource "aws_s3_bucket_public_access_block" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 # DB Subnet Group for RDS
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
@@ -390,6 +429,34 @@ resource "aws_iam_role" "ecs_task" {
   }
 }
 
+# IAM Policy for ECS Task to access S3
+resource "aws_iam_role_policy" "ecs_task_s3" {
+  name = "${var.project_name}-ecs-task-s3-policy"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "${aws_s3_bucket.images.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.images.arn
+      }
+    ]
+  })
+}
+
 # ECS Task Definition
 # When docker_image_tag changes, Terraform will create a new task definition revision
 # The ECS service will automatically detect the new revision and perform a rolling deployment
@@ -447,6 +514,14 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "OPENAI_KEY"
           value = var.openai_key
+        },
+        {
+          name  = "S3_BUCKET_NAME"
+          value = aws_s3_bucket.images.id
+        },
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
         }
       ]
 
