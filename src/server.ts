@@ -7,6 +7,7 @@ import fs from 'fs';
 import { promisify } from 'util';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -206,8 +207,19 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_KEY,
 });
 
+// Rate limiting: 10 requests per minute
+const classifyRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: {
+    error: 'Too many requests. Please try again in a minute.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // API route for hot dog classification
-app.post('/api/classify', upload.single('image'), async (req, res) => {
+app.post('/api/classify', classifyRateLimiter, upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ 
       error: 'No image file provided' 
