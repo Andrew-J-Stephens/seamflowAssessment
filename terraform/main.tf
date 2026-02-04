@@ -273,12 +273,20 @@ resource "aws_s3_bucket_public_access_block" "images" {
 }
 
 # DB Subnet Group for RDS (using public subnets for demo purposes)
+# Using a new name to avoid conflict with existing subnet group that's in use
+# NOTE: If you get an error about the old subnet group, run:
+#   terraform state rm aws_db_subnet_group.main
+# Then run terraform apply again
 resource "aws_db_subnet_group" "main" {
-  name       = "${var.project_name}-db-subnet-group"
+  name       = "${var.project_name}-db-subnet-group-public"
   subnet_ids = aws_subnet.public[*].id
 
   tags = {
-    Name = "${var.project_name}-db-subnet-group"
+    Name = "${var.project_name}-db-subnet-group-public"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
