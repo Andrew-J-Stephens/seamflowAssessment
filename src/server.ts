@@ -354,13 +354,23 @@ app.get('/api/history', async (req, res) => {
           }
         }
 
+        // PostgreSQL JSONB returns as object, not string, so no need to parse
+        let metadata = null;
+        if (row.request_metadata) {
+          if (typeof row.request_metadata === 'string') {
+            metadata = JSON.parse(row.request_metadata);
+          } else {
+            metadata = row.request_metadata;
+          }
+        }
+
         return {
           id: row.id,
           result: row.is_hot_dog ? 'Hot Dog' : 'Not Hot Dog',
           model: row.model,
           timestamp: row.timestamp,
           imageUrl,
-          metadata: row.request_metadata ? JSON.parse(row.request_metadata) : null,
+          metadata,
         };
       })
     );
