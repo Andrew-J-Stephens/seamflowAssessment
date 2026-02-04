@@ -1,10 +1,24 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import logo from '../assets/logo.png';
 
 interface ClassificationResult {
   result: 'Hot Dog' | 'Not Hot Dog';
   timestamp: string;
   model: string;
+}
+
+interface HistoryItem {
+  id: number;
+  result: 'Hot Dog' | 'Not Hot Dog';
+  model: string;
+  timestamp: string;
+  imageUrl: string | null;
+  metadata: {
+    originalFilename?: string;
+    fileSize?: number;
+    ip?: string;
+    userAgent?: string;
+  } | null;
 }
 
 const App: React.FC = () => {
@@ -14,6 +28,8 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (file: File) => {
@@ -110,15 +126,67 @@ const App: React.FC = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/history?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.history || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+    // Refresh history every 10 seconds
+    const interval = setInterval(fetchHistory, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Refresh history after a successful classification
+    if (result) {
+      fetchHistory();
+    }
+  }, [result]);
+
   return (
     <div className="app">
       <div className="container">
         <header className="header">
           <img src={logo} alt="Hot Dog or Not Logo" className="logo" />
-          <h1>Hot Dog or Not</h1>
         </header>
 
         <main className="main-content">
+          {history.length > 0 && (
+            <div className="history-container">
+              <h3 className="history-title">Recent Classifications</h3>
+              <div className="history-scroll">
+                {history.map((item) => (
+                  <div key={item.id} className={`history-item ${item.result === 'Hot Dog' ? 'hot-dog' : 'not-hot-dog'}`}>
+                    {item.imageUrl && (
+                      <img src={item.imageUrl} alt="Classification" className="history-image" />
+                    )}
+                    <div className="history-content">
+                      <div className="history-result">{item.result}</div>
+                      <div className="history-timestamp">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </div>
+                      {item.metadata?.originalFilename && (
+                        <div className="history-filename">{item.metadata.originalFilename}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="upload-form">
             <div
               className={`upload-area ${isDragging ? 'dragging' : ''} ${previewUrl ? 'has-preview' : ''}`}

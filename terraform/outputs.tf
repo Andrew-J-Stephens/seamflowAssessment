@@ -34,11 +34,16 @@ output "github_actions_role_arn" {
 }
 
 output "rds_endpoint" {
-  description = "RDS instance endpoint"
-  value       = aws_db_instance.main.endpoint
+  description = "RDS instance endpoint (hostname)"
+  value       = aws_db_instance.main.address
 }
 
 output "rds_port" {
   description = "RDS instance port"
   value       = aws_db_instance.main.port
+}
+
+output "s3_bucket_name" {
+  description = "Name of the S3 bucket for images"
+  value       = aws_s3_bucket.images.id
 }

@@ -79,3 +79,34 @@ jobs:
           TF_VAR_openai_key: ${{ secrets.OPENAI_KEY }}
         run: |
           terraform apply -auto-approve tfplan
+
+      - name: Get RDS endpoint from Terraform
+        working-directory: ./terraform
+        id: rds-info
+        run: |
+          RDS_ENDPOINT=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
+          RDS_PORT=$(terraform output -raw rds_port 2>/dev/null || echo "5432")
+          echo "rds_endpoint=$RDS_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "rds_port=$RDS_PORT" >> $GITHUB_OUTPUT
+          echo "RDS Endpoint: $RDS_ENDPOINT"
+          echo "RDS Port: $RDS_PORT"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Initialize Database
+        if: steps.rds-info.outputs.rds_endpoint != ''
+        continue-on-error: true
+        env:
+          DB_HOST: ${{ steps.rds-info.outputs.rds_endpoint }}
+          DB_PORT: ${{ steps.rds-info.outputs.rds_port }}
+          DB_NAME: ${{ secrets.DB_NAME || 'seamflow' }}
+          DB_USER: ${{ secrets.DB_USER || 'postgres' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "Attempting to initialize database..."
+          echo "Note: If RDS is in private subnets, this may fail."
+          echo "The application will auto-initialize the database on startup if needed."
+          ./scripts/init-db.sh || echo "Database initialization from GitHub Actions failed. Application will auto-initialize on startup."
