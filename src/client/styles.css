@@ -45,7 +45,7 @@ body {
 }
 
 .logo {
-  height: 48px;
+  height: 90px;
   width: auto;
   max-width: 200px;
   object-fit: contain;
@@ -464,7 +464,7 @@ body {
   }
 
   .logo {
-    height: 36px;
+    height: 90px;
     max-width: 140px;
   }
 

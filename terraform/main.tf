@@ -212,6 +212,15 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.ecs_tasks.id]
   }
 
+  # Allow PostgreSQL from anywhere for demo purposes (WARNING: Not recommended for production)
+  ingress {
+    description = "Allow PostgreSQL connections from internet (demo only)"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -263,10 +272,10 @@ resource "aws_s3_bucket_public_access_block" "images" {
   restrict_public_buckets = true
 }
 
-# DB Subnet Group for RDS
+# DB Subnet Group for RDS (using public subnets for demo purposes)
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = aws_subnet.private[*].id
+  subnet_ids = aws_subnet.public[*].id
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
