@@ -322,7 +322,7 @@ resource "aws_db_instance" "main" {
   # Note: Free tier includes 20GB storage, 750 hours/month of db.t2.micro or db.t3.micro
 
   tags = {
-    Name = "${var.project_name}-db"
+    Name = "${var.project_name}-db-public"
   }
 }
 
