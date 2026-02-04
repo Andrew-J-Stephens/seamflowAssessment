@@ -648,11 +648,12 @@ body {
 /* Responsive adjustments for sidebar */
 @media (max-width: 768px) {
   .sidebar {
-    width: 180px;
+    display: none;
   }
 
   .main-wrapper {
-    margin-left: 180px;
+    margin-left: 0;
+    width: 100%;
   }
 
   .architecture-title {
@@ -666,17 +667,12 @@ body {
 
 @media (max-width: 640px) {
   .sidebar {
-    width: 160px;
-    padding: 1.5rem 0;
+    display: none;
   }
 
   .main-wrapper {
-    margin-left: 160px;
-  }
-
-  .sidebar-link {
-    font-size: 0.875rem;
-    padding: 0.625rem 0.75rem;
+    margin-left: 0;
+    width: 100%;
   }
 
   .architecture-content {
