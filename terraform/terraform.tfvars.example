@@ -1,0 +1,42 @@
+# Copy this file to terraform.tfvars and update with your values
+# terraform.tfvars is in .gitignore and should not be committed
+
+aws_region        = "us-east-1"
+project_name      = "seamflow"
+vpc_cidr          = "10.0.0.0/16"
+task_cpu          = 256
+task_memory       = 512
+desired_task_count = 1
+
+# GitHub repository for OIDC (format: "owner/repo")
+github_repo       = "your-username/seamflow"
+
+# Docker image tag to deploy (update this after pushing new images to ECR)
+docker_image_tag = "latest"
+
+# NAT Gateway configuration
+# Set to false if you've reached Elastic IP limit or don't need internet access from private subnets
+# Note: ECS tasks in private subnets need NAT Gateway to pull images from ECR
+create_nat_gateway = false
+
+# If you have an existing Elastic IP you want to use for NAT Gateway, specify its allocation ID
+# existing_nat_eip_allocation_id = "eipalloc-xxxxxxxxx"
+
+# RDS Database Configuration
+db_engine_version  = "15.2"
+db_instance_class  = "db.t3.micro"
+db_allocated_storage = 20
+db_name            = "seamflow"
+db_username        = "postgres"
+# IMPORTANT: Database password should be set via GitHub Secret (DB_PASSWORD) for CI/CD
+# For local development, you can set it here or via environment variable:
+#   export TF_VAR_db_password="your-secure-password"
+# For GitHub Actions, add DB_PASSWORD as a repository secret
+# db_password        = "CHANGE_ME_TO_SECURE_PASSWORD"  # Only for local development
+
+# OpenAI API Key
+# IMPORTANT: OpenAI API key should be set via GitHub Secret (OPENAI_KEY) for CI/CD
+# For local development, you can set it here or via environment variable:
+#   export TF_VAR_openai_key="sk-..."
+# For GitHub Actions, add OPENAI_KEY as a repository secret
+# openai_key         = "sk-..."  # Only for local development

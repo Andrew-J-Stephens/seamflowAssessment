@@ -1,0 +1,81 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-push
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: seamflow
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build and push with commit SHA tag
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # Also tag as latest for convenience
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+          
+      - name: Terraform Init
+        working-directory: ./terraform
+        env:
+          TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
+          TF_BACKEND_KEY: ${{ secrets.TF_BACKEND_KEY || 'seamflow/terraform.tfstate' }}
+          TF_BACKEND_REGION: ${{ secrets.TF_BACKEND_REGION || 'us-east-1' }}
+        run: |
+          terraform init \
+            -backend-config="bucket=$TF_BACKEND_BUCKET" \
+            -backend-config="key=$TF_BACKEND_KEY" \
+            -backend-config="region=$TF_BACKEND_REGION" \
+            -backend-config="encrypt=true"
+          
+      - name: Terraform Plan
+        working-directory: ./terraform
+        env:
+          TF_VAR_docker_image_tag: ${{ steps.build-push.outputs.image_tag || 'latest' }}
+          TF_VAR_aws_region: us-east-1
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_openai_key: ${{ secrets.OPENAI_KEY }}
+        run: |
+          terraform plan -out=tfplan
+          
+      - name: Terraform Apply
+        working-directory: ./terraform
+        env:
+          TF_VAR_docker_image_tag: ${{ steps.build-push.outputs.image_tag || 'latest' }}
+          TF_VAR_aws_region: us-east-1
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_openai_key: ${{ secrets.OPENAI_KEY }}
+        run: |
+          terraform apply -auto-approve tfplan
