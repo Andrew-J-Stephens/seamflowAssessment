@@ -1,5 +1,9 @@
 # Hot Dog or Not
 
+<div align="center">
+  <img src="src/assets/logo.png" alt="Hot Dog or Not Logo" width="200" />
+</div>
+
 A production-ready web application that uses AI to classify images as either "Hot Dog" or "Not Hot Dog". Built with React, TypeScript, Express, and OpenAI's Vision API.
 
 ## What It Does

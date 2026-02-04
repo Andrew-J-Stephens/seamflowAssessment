@@ -38,6 +38,17 @@ body {
   text-align: center;
   border-bottom: 1px solid #e5e5e5;
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo {
+  height: 48px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
 }
 
 .header h1 {
@@ -45,6 +56,7 @@ body {
   font-weight: 600;
   color: #202123;
   letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .main-content {
@@ -308,6 +320,11 @@ body {
     padding: 1.5rem 1rem 1rem;
   }
 
+  .logo {
+    height: 40px;
+    max-width: 160px;
+  }
+
   .header h1 {
     font-size: 1.5rem;
   }
@@ -337,6 +354,15 @@ body {
 }
 
 @media (max-width: 480px) {
+  .header {
+    padding: 1.25rem 1rem 0.75rem;
+  }
+
+  .logo {
+    height: 36px;
+    max-width: 140px;
+  }
+
   .upload-area {
     padding: 1.5rem 1rem;
     min-height: 200px;

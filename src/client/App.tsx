@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import logo from '../assets/logo.png';
 
 interface ClassificationResult {
   result: 'Hot Dog' | 'Not Hot Dog';
@@ -113,6 +114,7 @@ const App: React.FC = () => {
     <div className="app">
       <div className="container">
         <header className="header">
+          <img src={logo} alt="Hot Dog or Not Logo" className="logo" />
           <h1>Hot Dog or Not</h1>
         </header>
 
