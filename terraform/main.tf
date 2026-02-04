@@ -284,7 +284,7 @@ resource "aws_db_subnet_group" "main" {
 
 # RDS PostgreSQL Instance
 resource "aws_db_instance" "main" {
-  identifier     = "${var.project_name}-db"
+  identifier     = "${var.project_name}-db-public"
   engine         = "postgres"
   # Using default PostgreSQL version (AWS will select the latest stable version)
   instance_class = var.db_instance_class
