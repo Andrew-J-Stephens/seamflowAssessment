@@ -113,8 +113,7 @@ const App: React.FC = () => {
     <div className="app">
       <div className="container">
         <header className="header">
-          <h1>Hot Dog Classification System</h1>
-          <p className="subtitle">Enterprise Image Analysis Platform</p>
+          <h1>Hot Dog or Not</h1>
         </header>
 
         <main className="main-content">
@@ -146,18 +145,23 @@ const App: React.FC = () => {
                     }}
                     className="remove-image-btn"
                     disabled={loading}
+                    aria-label="Remove image"
                   >
                     ×
                   </button>
                 </div>
               ) : (
                 <div className="upload-placeholder">
-                  <div className="upload-icon">📤</div>
+                  <svg className="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
                   <p className="upload-text">
                     Drag and drop an image here, or click to browse
                   </p>
                   <p className="upload-hint">
-                    Supports JPEG, PNG, GIF, WebP (max 10MB)
+                    JPEG, PNG, GIF, WebP (max 10MB)
                   </p>
                 </div>
               )}
@@ -181,7 +185,7 @@ const App: React.FC = () => {
                     Analyzing...
                   </>
                 ) : (
-                  'Classify Image'
+                  'Classify'
                 )}
               </button>
               
@@ -200,22 +204,15 @@ const App: React.FC = () => {
 
           {result && (
             <div className={`result-container ${result.result === 'Hot Dog' ? 'hot-dog' : 'not-hot-dog'}`}>
-              <div className="result-icon">
-                {result.result === 'Hot Dog' ? '🌭' : '❌'}
-              </div>
-              <div className="result-text">
-                <h2>{result.result}</h2>
-                <p className="result-timestamp">
-                  Classified at {new Date(result.timestamp).toLocaleString()}
-                </p>
+              <div className="result-content">
+                <div className="result-label">{result.result}</div>
+                <div className="result-timestamp">
+                  {new Date(result.timestamp).toLocaleString()}
+                </div>
               </div>
             </div>
           )}
         </main>
-
-        <footer className="footer">
-          <p>Powered by OpenAI Vision API</p>
-        </footer>
       </div>
     </div>
   );
