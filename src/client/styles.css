@@ -427,24 +427,24 @@ body {
 }
 
 .result-container {
-  margin-top: 2rem;
+  margin-top: 0;
+  margin-bottom: 2rem;
   padding: 1.5rem;
   border-radius: 8px;
-  border: 1px solid #e5e5e5;
-  background: #ffffff;
+  border: 1px solid;
   width: 100%;
   max-width: 640px;
   animation: fadeIn 0.3s ease;
 }
 
 .result-container.hot-dog {
-  border-color: #d1d5db;
-  background: #fafafa;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
 }
 
 .result-container.not-hot-dog {
-  border-color: #d1d5db;
-  background: #fafafa;
+  border-color: #fca5a5;
+  background: #fef2f2;
 }
 
 .result-content {
@@ -454,9 +454,16 @@ body {
 .result-label {
   font-size: 1.125rem;
   font-weight: 500;
-  color: #202123;
   margin-bottom: 0.5rem;
   letter-spacing: -0.01em;
+}
+
+.result-container.hot-dog .result-label {
+  color: #065f46;
+}
+
+.result-container.not-hot-dog .result-label {
+  color: #991b1b;
 }
 
 .result-timestamp {

@@ -200,6 +200,17 @@ const Home: React.FC<{
         </div>
       )}
 
+      {result && (
+        <div className={`result-container ${result.result === 'Hot Dog' ? 'hot-dog' : 'not-hot-dog'}`}>
+          <div className="result-content">
+            <div className="result-label">{result.result}</div>
+            <div className="result-timestamp">
+              {new Date(result.timestamp).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="upload-form">
         <div
           className={`upload-area ${isDragging ? 'dragging' : ''} ${previewUrl ? 'has-preview' : ''}`}
@@ -284,17 +295,6 @@ const Home: React.FC<{
           )}
         </div>
       </form>
-
-      {result && (
-        <div className={`result-container ${result.result === 'Hot Dog' ? 'hot-dog' : 'not-hot-dog'}`}>
-          <div className="result-content">
-            <div className="result-label">{result.result}</div>
-            <div className="result-timestamp">
-              {new Date(result.timestamp).toLocaleString()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
