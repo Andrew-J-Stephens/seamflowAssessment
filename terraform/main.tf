@@ -297,7 +297,7 @@ resource "aws_db_instance" "main" {
 
   skip_final_snapshot       = true
   deletion_protection       = false
-  publicly_accessible       = false
+  publicly_accessible       = true
   multi_az                  = false
   performance_insights_enabled = false
   
