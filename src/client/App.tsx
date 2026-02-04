@@ -150,6 +150,13 @@ const Home: React.FC<{
       const data: ClassificationResult = await res.json();
       setResult(data);
       onHistoryUpdate();
+      
+      // Automatically clear the image after successful classification
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
