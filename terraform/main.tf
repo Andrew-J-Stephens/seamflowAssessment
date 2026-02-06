@@ -138,39 +138,12 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[count.index].id
 }
 
-# Security Group for ALB
-resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Security group for Application Load Balancer"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-alb-sg"
-  }
-}
+# ALB removed for cost savings (~$16/month)
+# ECS tasks are now exposed directly via public IP
+# If you need a stable endpoint, consider:
+# 1. Route53 with dynamic DNS updates
+# 2. Elastic IP (but requires EC2, not Fargate)
+# 3. CloudFront (for static content caching, but adds complexity)
 
 # Security Group for ECS Tasks
 resource "aws_security_group" "ecs_tasks" {
@@ -178,12 +151,13 @@ resource "aws_security_group" "ecs_tasks" {
   description = "Security group for ECS tasks"
   vpc_id      = aws_vpc.main.id
 
+  # Allow direct HTTP access from internet (ALB removed for cost savings)
   ingress {
-    description     = "Allow traffic from ALB"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    description = "Allow HTTP traffic from internet"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -307,16 +281,14 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids = [aws_security_group.rds.id]
   db_subnet_group_name   = aws_db_subnet_group.main.name
 
-  # Free tier: backup retention must be 0 or 1 day
-  backup_retention_period = 1
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
-
+  # Cost optimization: disable backups to reduce storage costs
+  backup_retention_period = 0
   skip_final_snapshot       = true
   deletion_protection       = false
   publicly_accessible       = true
   multi_az                  = false
   performance_insights_enabled = false
+  auto_minor_version_upgrade = false  # Disable automatic minor version upgrades
   
   # Free tier: enable automated backups (required for backup_retention_period > 0)
   # Note: Free tier includes 20GB storage, 750 hours/month of db.t2.micro or db.t3.micro
@@ -326,56 +298,12 @@ resource "aws_db_instance" "main" {
   }
 }
 
-# Application Load Balancer
-resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
-
-  enable_deletion_protection = false
-
-  tags = {
-    Name = "${var.project_name}-alb"
-  }
-}
-
-# Target Group
-resource "aws_lb_target_group" "app" {
-  name        = "${var.project_name}-tg"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/api/health"
-    protocol            = "HTTP"
-    matcher             = "200"
-  }
-
-  tags = {
-    Name = "${var.project_name}-tg"
-  }
-}
-
-# ALB Listener
-resource "aws_lb_listener" "app" {
-  load_balancer_arn = local.alb_arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = local.target_group_arn
-  }
-}
+# ALB, Target Group, and Listener removed for cost savings (~$16/month)
+# ECS tasks are now accessed directly via their public IP addresses
+# To get the public IP after deployment, run:
+#   aws ecs list-tasks --cluster seamflow-cluster
+#   aws ecs describe-tasks --cluster seamflow-cluster --tasks <task-id>
+#   aws ec2 describe-network-interfaces --network-interface-ids <eni-id>
 
 # ECR Repository (already exists - using data source)
 data "aws_ecr_repository" "app" {
@@ -386,10 +314,11 @@ data "aws_ecr_repository" "app" {
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
+  # Disabled Container Insights to reduce costs (~$0.10/day per cluster)
+  # setting {
+  #   name  = "containerInsights"
+  #   value = "enabled"
+  # }
 
   tags = {
     Name = "${var.project_name}-cluster"
@@ -474,13 +403,162 @@ resource "aws_iam_role_policy" "ecs_task_s3" {
   })
 }
 
-# ECS Task Definition
+# IAM Role for EC2 Instances (ECS Container Instance Role)
+resource "aws_iam_role" "ec2_instance" {
+  name = "${var.project_name}-ec2-instance-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name}-ec2-instance-role"
+  }
+}
+
+# Attach ECS Container Instance policy
+resource "aws_iam_role_policy_attachment" "ec2_instance_ecs" {
+  role       = aws_iam_role.ec2_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+# Attach CloudWatch Logs policy for EC2
+resource "aws_iam_role_policy_attachment" "ec2_instance_cloudwatch" {
+  role       = aws_iam_role.ec2_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
+# Instance Profile for EC2
+resource "aws_iam_instance_profile" "ec2_instance" {
+  name = "${var.project_name}-ec2-instance-profile"
+  role = aws_iam_role.ec2_instance.name
+
+  tags = {
+    Name = "${var.project_name}-ec2-instance-profile"
+  }
+}
+
+# Get latest ECS-optimized AMI
+data "aws_ami" "ecs_optimized" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
+  }
+}
+
+# Launch Template for EC2 instances
+resource "aws_launch_template" "ecs" {
+  name_prefix   = "${var.project_name}-ecs-"
+  image_id      = data.aws_ami.ecs_optimized.id
+  instance_type = var.ec2_instance_type
+  key_name      = ""  # No SSH key needed for this setup
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.ec2_instance.name
+  }
+
+  vpc_security_group_ids = [aws_security_group.ecs_tasks.id]
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    echo ECS_CLUSTER=${aws_ecs_cluster.main.name} >> /etc/ecs/ecs.config
+    echo ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config
+  EOF
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "${var.project_name}-ecs-instance"
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-ecs-launch-template"
+  }
+}
+
+# Auto Scaling Group for ECS EC2 instances
+resource "aws_autoscaling_group" "ecs" {
+  name                = "${var.project_name}-ecs-asg"
+  vpc_zone_identifier = aws_subnet.public[*].id
+  target_group_arns   = []
+  health_check_type   = "EC2"
+  health_check_grace_period = 300
+  min_size            = var.ec2_instance_count
+  max_size            = var.ec2_instance_count
+  desired_capacity    = var.ec2_instance_count
+
+  launch_template {
+    id      = aws_launch_template.ecs.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.project_name}-ecs-instance"
+    propagate_at_launch = true
+  }
+
+  # Protect from scale in to maintain instance count
+  protect_from_scale_in = false
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# ECS Capacity Provider for EC2
+resource "aws_ecs_capacity_provider" "ec2" {
+  name = "${var.project_name}-ec2-capacity-provider"
+
+  auto_scaling_group_provider {
+    auto_scaling_group_arn = aws_autoscaling_group.ecs.arn
+
+    managed_scaling {
+      status          = "DISABLED"  # Disable auto-scaling to keep costs predictable
+      target_capacity = 100
+    }
+
+    managed_termination_protection = "DISABLED"
+  }
+
+  tags = {
+    Name = "${var.project_name}-ec2-capacity-provider"
+  }
+}
+
+# Attach capacity provider to cluster
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name = aws_ecs_cluster.main.name
+
+  capacity_providers = [aws_ecs_capacity_provider.ec2.name]
+
+  default_capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.ec2.name
+    weight            = 1
+  }
+}
+
+# ECS Task Definition (updated for EC2)
 # When docker_image_tag changes, Terraform will create a new task definition revision
 # The ECS service will automatically detect the new revision and perform a rolling deployment
 resource "aws_ecs_task_definition" "app" {
   family                   = "${var.project_name}-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
+  network_mode             = "bridge"  # Bridge mode for EC2 (cheaper than awsvpc)
+  requires_compatibilities = ["EC2"]
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
@@ -495,6 +573,7 @@ resource "aws_ecs_task_definition" "app" {
       portMappings = [
         {
           containerPort = 3000
+          hostPort      = 3000  # Required for bridge network mode
           protocol      = "tcp"
         }
       ]
@@ -561,7 +640,7 @@ resource "aws_ecs_task_definition" "app" {
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/ecs/${var.project_name}"
-  retention_in_days = 7
+  retention_in_days = 1  # Reduced from 7 days to minimize log storage costs
 
   tags = {
     Name = "${var.project_name}-logs"
@@ -570,37 +649,28 @@ resource "aws_cloudwatch_log_group" "app" {
 
 # Local values for resource references
 locals {
-  alb_arn          = aws_lb.main.arn
-  alb_id           = aws_lb.main.id
-  target_group_arn = aws_lb_target_group.app.arn
-  log_group_name   = aws_cloudwatch_log_group.app.name
+  log_group_name = aws_cloudwatch_log_group.app.name
 }
 
-# ECS Service
+# ECS Service (using EC2 instead of Fargate for cost savings)
 resource "aws_ecs_service" "app" {
   name            = "${var.project_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.desired_task_count
-  launch_type     = "FARGATE"
 
-  network_configuration {
-    subnets          = var.create_nat_gateway ? aws_subnet.private[*].id : aws_subnet.public[*].id
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = var.create_nat_gateway ? false : true
+  # Use capacity provider strategy instead of launch_type for EC2
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.ec2.name
+    weight            = 1
   }
 
-  load_balancer {
-    target_group_arn = local.target_group_arn
-    container_name   = "${var.project_name}-container"
-    container_port   = 3000
-  }
+  # No network_configuration needed for bridge network mode with EC2
+  # Tasks run on EC2 instances which have public IPs
 
   # Enable rolling deployment - new tasks are created before old ones are stopped
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
-
-  depends_on = [aws_lb_listener.app]
 
   tags = {
     Name = "${var.project_name}-service"

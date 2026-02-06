@@ -34,6 +34,24 @@ variable "desired_task_count" {
   default     = 1
 }
 
+variable "ec2_instance_type" {
+  description = "EC2 instance type for ECS cluster (using EC2 instead of Fargate for cost savings)"
+  type        = string
+  default     = "t3.micro"  # Smallest, cheapest instance type
+}
+
+variable "ec2_instance_count" {
+  description = "Number of EC2 instances in the ECS cluster"
+  type        = number
+  default     = 1  # Single instance for minimal cost
+}
+
+variable "use_spot_instances" {
+  description = "Use Spot Instances for additional cost savings (up to 90% cheaper, but can be interrupted)"
+  type        = bool
+  default     = false  # Set to true for maximum savings if interruptions are acceptable
+}
+
 variable "github_repo" {
   description = "GitHub repository in format 'owner/repo' (e.g., 'username/seamflow')"
   type        = string
@@ -68,13 +86,13 @@ variable "db_engine_version" {
 variable "db_instance_class" {
   description = "RDS instance class"
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t4g.micro"  # ARM-based, cheaper than t3.micro
 }
 
 variable "db_allocated_storage" {
   description = "Allocated storage for RDS in GB"
   type        = number
-  default     = 20
+  default     = 10  # Reduced from 20GB to minimize storage costs
 }
 
 variable "db_name" {

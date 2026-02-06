@@ -1,12 +1,8 @@
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.main.dns_name
-}
-
-output "alb_arn" {
-  description = "ARN of the Application Load Balancer"
-  value       = aws_lb.main.arn
-}
+# ALB outputs removed - ALB was removed for cost savings
+# To get ECS task public IP, use AWS CLI:
+#   aws ecs list-tasks --cluster <cluster-name> --service-name <service-name>
+#   aws ecs describe-tasks --cluster <cluster-name> --tasks <task-id>
+#   aws ec2 describe-network-interfaces --network-interface-ids <eni-id>
 
 output "ecr_repository_url" {
   description = "URL of the ECR repository"
@@ -46,4 +42,14 @@ output "rds_port" {
 output "s3_bucket_name" {
   description = "Name of the S3 bucket for images"
   value       = aws_s3_bucket.images.id
+}
+
+output "ec2_instance_public_ip" {
+  description = "Public IP of EC2 instance (access app at http://<ip>:3000)"
+  value       = "Run: aws ec2 describe-instances --filters 'Name=tag:Name,Values=${var.project_name}-ecs-instance' 'Name=instance-state-name,Values=running' --query 'Reservations[*].Instances[*].PublicIpAddress' --output text"
+}
+
+output "ecs_service_instructions" {
+  description = "Instructions to access the application"
+  value       = "Access the app at http://<ec2-public-ip>:3000. Get the IP using the ec2_instance_public_ip output command."
 }
